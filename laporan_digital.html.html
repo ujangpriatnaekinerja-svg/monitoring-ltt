@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan LTT & Panen - Digital BPP</title>
+    <style>
+        :root { --foto-dim: 0.90in; --ttd-w: 2.2in; --ttd-h: 1.8in; }
+        body { font-family: 'Calibri', sans-serif; font-size: 11pt; background-color: #f4f7f6; margin: 0; padding: 10px; color: #000; }
+        
+        .input-panel { max-width: 1000px; margin: 0 auto 20px auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        @media (max-width: 600px) { .input-grid { grid-template-columns: 1fr; } }
+        
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; font-size: 9pt; margin-bottom: 3px; }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 10pt; }
+        
+        .btn-box { display: flex; gap: 10px; }
+        .btn { padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
+        .btn-save { background-color: #28a745; flex: 2; }
+        .btn-print { background-color: #007bff; flex: 1; }
+        
+        .items-edit { margin-top: 15px; font-size: 10pt; border-top: 1px solid #ddd; padding-top: 10px; }
+        .edit-row { display: flex; justify-content: space-between; background: #eee; margin-bottom: 5px; padding: 8px; border-radius: 4px; align-items: center; }
+        
+        .page-landscape { width: 277mm; padding: 10mm; margin: 0 auto; background: white; box-sizing: border-box; overflow-x: auto; }
+        @media screen and (max-width: 277mm) { .page-landscape { width: 100%; padding: 5mm; } }
+        
+        .report-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 15px; text-transform: uppercase; }
+        .info-section { margin-bottom: 15px; line-height: 1.4; font-weight: bold; }
+        .sisa-box { color: #d9534f; background: #fff0f0; padding: 2px 5px; border-radius: 4px; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 800px; }
+        th, td { border: 1px solid black; padding: 4px; text-align: center; vertical-align: middle; word-wrap: break-word; }
+        th { background-color: #00b050; color: white; height: 35px; }
+        .row-total { background-color: #f2f2f2; font-weight: bold; }
+        
+        .img-cell { width: var(--foto-dim); height: var(--foto-dim); margin: 2px auto; border: 0.5px solid #000; overflow: hidden; }
+        .img-cell img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .footer-container { margin-top: 20px; display: flex; justify-content: flex-end; padding-right: 40px; }
+        .ttd-area { text-align: center; width: 250px; font-size: 11pt; line-height: 1.1; }
+        .ttd-img-box { height: var(--ttd-h); width: var(--ttd-w); margin: 5px auto; display: flex; align-items: center; justify-content: center; }
+        #view-ttd { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        @media print { 
+            .no-print { display: none !important; } 
+            .page-landscape { width: 277mm; padding: 0; box-shadow: none; border: none; margin: 0; } 
+            body { background: white; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="input-panel no-print">
+    <div class="input-grid">
+        <div class="form-group"><label>Bulan Laporan</label>
+            <select id="filter-bulan" onchange="muatData()">
+                <option value="0">Januari</option><option value="1">Februari</option>
+                <option value="2">Maret</option><option value="3">April</option>
+                <option value="4" selected>Mei</option><option value="5">Juni</option>
+            </select>
+        </div>
+        <div class="form-group"><label>Tanggal Kejadian</label><input type="date" id="in-tgl"></div>
+        <div class="form-group"><label>Luas Tanam (Ha)</label><input type="number" step="0.01" id="in-ltt" value="0"></div>
+        <div class="form-group"><label>Luas Panen (Ha)</label><input type="number" step="0.01" id="in-lp" value="0"></div>
+        <div class="form-group"><label>Pengolahan (Ha)</label><input type="number" step="0.01" id="in-olah" value="0"></div>
+        <div class="form-group"><label>Foto Tanam</label><input type="file" id="f-tanam" accept="image/*"></div>
+        <div class="form-group"><label>Foto Panen</label><input type="file" id="f-panen" accept="image/*"></div>
+        <div class="form-group"><label>Update TTD Baru</label><input type="file" id="f-ttd" accept="image/*"></div>
+    </div>
+    <input type="hidden" id="edit-idx" value="-1">
+    <div class="btn-box">
+        <button class="btn btn-save" id="btn-save" onclick="simpanData()">SIMPAN KE EXCEL & HP</button>
+        <button class="btn btn-print" onclick="window.print()">CETAK PDF</button>
+    </div>
+    <div class="items-edit" id="items-edit"></div>
+</div>
+
+<div class="page-landscape">
+    <div class="report-title">Formulir Laporan Luas Tanam dan Panen</div>
+    <div class="info-section">
+        Bulan : <span id="txt-bln">-</span><br>
+        Nama Penyuluh : Ujang Priatna, A.Md<br>
+        Desa : Citalahab | Kec : Karangjaya | Kab : Tasikmalaya<br>
+        LBS Baku: 94.58 Ha | <span class="sisa-box">Sisa LBS (Bera): <span id="txt-sisa-lbs">0.00</span> Ha</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 35px;">No.</th>
+                <th>Kecamatan</th><th>Desa</th><th>Tanggal Tanam</th><th>Luas Tanam (Ha)</th><th>Tanggal Panen</th><th>Luas Panen (Ha)</th><th>Foto Tanam</th><th>Foto Panen</th>
+            </tr>
+        </thead>
+        <tbody id="isi-tabel"></tbody>
+        <tfoot>
+            <tr class="row-total">
+                <td colspan="4" style="text-align: right; padding-right: 10px;">TOTAL JUMLAH:</td>
+                <td id="total-ltt">0</td>
+                <td></td>
+                <td id="total-lp">0</td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    </table>
+    <div class="footer-container">
+        <div class="ttd-area">
+            <div id="txt-tgl-ttd">Karangjaya, -</div><br>
+            <div>Penyuluh Pertanian</div>
+            <div>WKPP Desa Citalahab</div>
+            <div class="ttd-img-box"><img id="view-ttd" src="" alt=" "></div>
+            <div><strong><u>Ujang Priatna, A.Md</u></strong><br>NIP. 198206182021211001</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // URL Web App milik Pak Ujang Priatna
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwiCvfexerAHvELkkZoZ2oPJsxhFOzhJIPNUCMpFnSYAMx8WK4OhdXGcd6_vzRz8ll4sw/exec"; 
+    const LBS_FIXED = 94.58;
+    
+    let db = JSON.parse(localStorage.getItem('db_ltt_v22')) || [];
+    let ttd = localStorage.getItem('ttd_v22') || '';
+
+    window.onload = () => { if(ttd) document.getElementById('view-ttd').src = ttd; muatData(); };
+
+    async function simpanData() {
+        const btn = document.getElementById('btn-save');
+        const idx = parseInt(document.getElementById('edit-idx').value);
+        btn.innerText = "SEDANG MENGIRIM..."; btn.disabled = true;
+
+        const entry = {
+            tgl: document.getElementById('in-tgl').value,
+            ltt: parseFloat(document.getElementById('in-ltt').value) || 0,
+            lp: parseFloat(document.getElementById('in-lp').value) || 0,
+            olah: parseFloat(document.getElementById('in-olah').value) || 0,
+            fT: await toB64(document.getElementById('f-tanam').files[0]) || (idx !== -1 ? db[idx].fT : ''),
+            fP: await toB64(document.getElementById('f-panen').files[0]) || (idx !== -1 ? db[idx].fP : '')
+        };
+
+        if(!entry.tgl) { alert("Pilih tanggal dulu!"); btn.disabled = false; btn.innerText = "SIMPAN KE EXCEL & HP"; return; }
+
+        const beraSatuan = LBS_FIXED - (entry.ltt + entry.olah);
+
+        // KIRIM KE GOOGLE SHEETS
+        const params = new URLSearchParams();
+        params.append("kecamatan", "Karangjaya");
+        params.append("desa", "Citalahab");
+        params.append("tanggal", entry.tgl);
+        params.append("luasTanam", entry.ltt);
+        params.append("luasPanen", entry.lp);
+        params.append("pengolahan", entry.olah);
+        params.append("lbs_tetap", LBS_FIXED);
+        params.append("sisa_bera", beraSatuan.toFixed(2));
+
+        fetch(WEB_APP_URL, { method: 'POST', body: params, mode: 'no-cors' })
+        .then(() => console.log("Data berhasil dikirim ke Sheets"))
+        .catch(e => console.error("Gagal kirim ke Sheets"));
+
+        const fTTD = await toB64(document.getElementById('f-ttd').files[0]);
+        if(fTTD) { ttd = fTTD; localStorage.setItem('ttd_v22', ttd); document.getElementById('view-ttd').src = ttd; }
+
+        if(idx === -1) db.push(entry); else db[idx] = entry;
+        localStorage.setItem('db_ltt_v22', JSON.stringify(db));
+        
+        btn.innerText = "SIMPAN KE EXCEL & HP"; btn.disabled = false;
+        resetForm(); muatData(); alert("Data Berhasil Tersimpan!");
+    }
+
+    function muatData() {
+        const tbody = document.getElementById('isi-tabel');
+        const editDiv = document.getElementById('items-edit');
+        const selBln = parseInt(document.getElementById('filter-bulan').value);
+        const blnArr = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        
+        tbody.innerHTML = ''; editDiv.innerHTML = '';
+        let sumLTT = 0, sumLP = 0, sumOlah = 0;
+        
+        document.getElementById('txt-bln').innerText = `${blnArr[selBln]} 2026`;
+        document.getElementById('txt-tgl-ttd').innerText = `Karangjaya, ${new Date(2026, selBln + 1, 0).getDate()} ${blnArr[selBln]} 2026`;
+        
+        db.forEach((item, i) => {
+            const d = new Date(item.tgl);
+            if(d.getMonth() === selBln) {
+                sumLTT += item.ltt; sumLP += item.lp; sumOlah += (item.olah || 0);
+                const fTgl = `${d.getDate()}-${blnArr[selBln].substring(0,3)}-26`;
+                tbody.innerHTML += `<tr><td>${tbody.rows.length + 1}</td><td>Karangjaya</td><td>Citalahab</td><td>${fTgl}</td><td>${item.ltt}</td><td>${fTgl}</td><td>${item.lp}</td><td>${item.fT ? `<div class="img-cell"><img src="${item.fT}"></div>` : ''}</td><td>${item.fP ? `<div class="img-cell"><img src="${item.fP}"></div>` : ''}</td></tr>`;
+                editDiv.innerHTML += `<div class="edit-row"><span>Tgl: ${fTgl} | LTT: ${item.ltt}</span><div><button onclick="startEdit(${i})">Edit</button> <button onclick="hapus(${i})">X</button></div></div>`;
+            }
+        });
+
+        const sisaLbsTotal = LBS_FIXED - (sumLTT + sumOlah);
+        document.getElementById('txt-sisa-lbs').innerText = sisaLbsTotal.toFixed(2);
+        document.getElementById('total-ltt').innerText = sumLTT.toFixed(2);
+        document.getElementById('total-lp').innerText = sumLP.toFixed(2);
+    }
+
+    function startEdit(i) {
+        document.getElementById('edit-idx').value = i;
+        document.getElementById('in-tgl').value = db[i].tgl;
+        document.getElementById('in-ltt').value = db[i].ltt;
+        document.getElementById('in-lp').value = db[i].lp;
+        document.getElementById('in-olah').value = db[i].olah || 0;
+        document.getElementById('btn-save').innerText = "UPDATE DATA";
+        window.scrollTo(0,0);
+    }
+    function hapus(i) { if(confirm("Hapus data ini?")) { db.splice(i,1); localStorage.setItem('db_ltt_v22', JSON.stringify(db)); muatData(); } }
+    function resetForm() { document.getElementById('edit-idx').value = "-1"; document.getElementById('in-ltt').value=0; document.getElementById('in-lp').value=0; document.getElementById('in-olah').value=0; }
+    const toB64 = f => new Promise(r => { if(!f) return r(''); const fr = new FileReader(); fr.readAsDataURL(f); fr.onload = () => r(fr.result); });
+</script>
+</body>
+</html>
